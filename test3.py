@@ -1,8 +1,20 @@
 import numpy as np
 import cv2
+import sys
+import time
+from ffpyplayer.player import MediaPlayer
 
+thresh = 0.5
+invert_flag = False
+for arg in sys.argv[1:]:
+    if arg.startswith("--thresh="):
+        threshold = float(arg.split("=")[1])
+    elif arg == "--inv":
+        invert_flag = True
 
-cap = cv2.VideoCapture('STICK.mp4')
+path = 'BadApple!!.mp4'
+cap = cv2.VideoCapture(path)
+player = MediaPlayer(path)
 res = (640, 380)
 div = (20, 32)
 
@@ -85,7 +97,13 @@ def draw_seven_seg_binary(frame_shape, boxes, div, gray_frame, threshold=0.5,
 # Precompute boxes
 boxes = subdiv(res[0], res[1], div[0], div[1])
 
+max_fps = 30
+frame_time = 1.0 / max_fps
+prev_time = time.time()
+frame_count = 0
+
 while cap.isOpened():
+    start_time = time.time()
     ret, frame = cap.read()
     if not ret:
         break
@@ -93,7 +111,8 @@ while cap.isOpened():
     frame = cv2.resize(frame, res)
     cv2.imshow('frame', frame)
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY).astype(np.float32) / 255.0
-    gray = 1.0 - gray  # invert if white background to black segments
+    if invert_flag:
+        gray = 1.0 - gray  # invert if white background to black segments
 
     # Draw 7-segment display on black background
     frame_out = draw_seven_seg_binary(
@@ -101,15 +120,34 @@ while cap.isOpened():
         boxes=boxes,
         div=div,
         gray_frame=gray,
-        threshold=0.5,
+        threshold=thresh,
         color_on=(0,255,0),
         color_off=(0,0,0)
     )
 
+    audio_frame, val = player.get_frame()
+    if val == 'eof':
+        break
+
     cv2.imshow("7seg_binary", frame_out)
 
-    if cv2.waitKey(25) & 0xFF == 27:
+    # FPS calculation
+    frame_count += 1
+    curr_time = time.time()
+    elapsed = curr_time - prev_time
+    if elapsed >= 1.0:  # every second
+        fps = frame_count / elapsed
+        print(f"FPS: {fps:.2f}")
+        frame_count = 0
+        prev_time = curr_time
+    # Limit FPS
+    elapsed = time.time() - start_time
+    if elapsed < frame_time:
+        time.sleep(frame_time - elapsed)
+
+    if cv2.waitKey(1) & 0xFF == 27:
         break
 
 cap.release()
 cv2.destroyAllWindows()
+player.close_player()
