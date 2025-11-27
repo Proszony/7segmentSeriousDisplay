@@ -102,6 +102,7 @@ frame_time = 1.0 / max_fps
 prev_time = time.time()
 frame_count = 0
 
+
 while cap.isOpened():
     start_time = time.time()
     ret, frame = cap.read()
@@ -109,7 +110,7 @@ while cap.isOpened():
         break
 
     frame = cv2.resize(frame, res)
-    cv2.imshow('frame', frame)
+    #cv2.imshow('frame', frame)
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY).astype(np.float32) / 255.0
     if invert_flag:
         gray = 1.0 - gray  # invert if white background to black segments
@@ -151,3 +152,4 @@ while cap.isOpened():
 cap.release()
 cv2.destroyAllWindows()
 player.close_player()
+
