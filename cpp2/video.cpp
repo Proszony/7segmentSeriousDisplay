@@ -91,7 +91,7 @@ void run_video(const string &filename,
 			);
 
 			roi &= Rect(0,0,res.width,res.height);
-			if (roi.width < 2 || roi.height <2) {
+			if (roi.width < 1 || roi.height < 1) {
 				segStates[i].on[seg] = false;
 				continue;
 			}
@@ -115,7 +115,7 @@ void run_video(const string &filename,
 					s.h			
 				);
 
-				rectangle(frame_out, roi, Scalar(0, 255, 0), FILLED);
+				rectangle(frame_out, roi, Scalar(0, 0, 255), FILLED);
 			}
 		}
 	}

@@ -22,16 +22,25 @@ Flags:
 -a	: play audio
 -h      : show this message
 -i      : input video file
+
+Defult values:
+-file		: BadApple!!.mp4
+-threshold	: 0.5
+-invert		: false
+-audio		: false
+-video		: false
+-fps		: 30
 )";
 
 int main(int argc, char **argv)
 {
-    string filename = "BadApple!!.mp4";
+    string filename = "../res/BadApple!!.mp4";
     float thresh = 0.5f;
     bool invert_flag = false;
     bool audio_flag = false;
-    Size res(640, 380);
-    Size div(20, 32);
+    //Size res(640, 360);
+    Size res(1280, 720);
+    Size div(20, 30);
     float max_fps = 30.0f;
     bool draw = false;
 
@@ -56,7 +65,7 @@ int main(int argc, char **argv)
         else if(arg == "-a")
             audio_flag = true;
 	else if(arg == "-d")
-	    draw = true;	
+	    draw = true;
         else
             cout << "Unknown flag: " << arg << endl;
     }
