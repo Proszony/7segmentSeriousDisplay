@@ -12,7 +12,7 @@ for arg in sys.argv[1:]:
     elif arg == "--inv":
         invert_flag = True
 
-path = 'BadApple!!.mp4'
+path = '../res/BadApple!!.mp4'
 cap = cv2.VideoCapture(path)
 player = MediaPlayer(path)
 res = (640, 380)

@@ -26,7 +26,8 @@ void run_video(const string &filename,
         cerr << "Error: Cannot open video: " << filename << endl;
         return;
     }
-
+    
+    if(max_fps <= 0) max_fps = cap.get(CAP_PROP_FPS);
     float frame_time = 1.0f / max_fps;
 
     Mat frame, gray, frame_out(res, CV_8UC3);

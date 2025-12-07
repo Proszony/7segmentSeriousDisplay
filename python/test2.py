@@ -2,7 +2,7 @@ import numpy as np
 import cv2
 
 
-cap = cv2.VideoCapture('BadApple!!.mp4')
+cap = cv2.VideoCapture('../res/BadApple!!.mp4')
 res = (640, 380)
 div = (20, 32)
 
