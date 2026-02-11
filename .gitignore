@@ -1,0 +1,6 @@
+# Compiled
+*.o
+
+# Backups
+*.bk
+*.bak
