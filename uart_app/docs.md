@@ -18,8 +18,19 @@ uart_app/
 │   ├── uart.cpp      # Implementacja komunikacji UART
 │   └── audio.cpp     # Implementacja odtwarzania audio
 ├── Makefile          # Konfiguracja kompilacji
+├── docs.md           # Dokumentacja projektu
 └── app               # Skompilowany plik wykonywalny
 ```
+
+---
+
+## Tryby pracy
+
+| Tryb | Komenda | Opis |
+|------|---------|------|
+| **send** (domyślny) | `./app -m send` | Wideo → przetwarzanie → serializacja → UART |
+| **receive** | `./app -m receive` | UART → deserializacja → wyświetlanie/logowanie |
+| **display** | `./app -m display` | Lokalne wyświetlanie wideo (bez UART) |
 
 ---
 
@@ -71,7 +82,7 @@ uart_app/
 - `seg_color` - kolor segmentów w BGR (domyślnie: czerwony)
 - `mode` - tryb pracy: "send", "receive", "display" (domyślnie: "send")
 - `port` - ścieżka urządzenia UART (domyślnie: "/dev/ttyUSB0")
-- `baudrate` - prędkość transmisji (domyślnie: 115600)
+- `baudrate` - prędkość transmisji (domyślnie: 115200)
 
 **Funkcje:**
 - `parse_args()` - parsuje argumenty wiersza poleceń
@@ -111,11 +122,14 @@ uart_app/
 1. Otwiera plik wideo
 2. Dla każdej klatki: przetwarza obraz → tworzy SegStates → tworzy Frame → serializuje → wysyła przez UART
 3. Opcjonalnie odtwarza audio równolegle
+4. Wyświetla okno z wideo jeśli flaga `-d`
 
 **Tryb "receive":**
 1. Nasłuchuje na porcie UART
-2. Szuka markerów start/end ramki
-3. Deserializuje dane i wyświetla w oknie OpenCV
+2. Szuka markerów start/end ramki (0x2137 i 0x69)
+3. Deserializuje dane i:
+   - Jeśli flaga `-d`: wyświetla w oknie OpenCV
+   - Bez flagi `-d`: loguje co 30 klatek do konsoli
 
 **Tryb "display":**
 1. Działa jak oryginalna symulacja - wyświetla wideo lokalnie bez UART
@@ -209,12 +223,37 @@ uart_app/
 cd uart_app
 make          # kompilacja
 ./app --help  # wyświetl pomoc
+```
 
-# Przykłady użycia:
-./app -m send -p /dev/ttyUSB0 -b 115600 -i ../res/BadApple!!.mp4 -d
-./app -m receive -p /dev/ttyUSB0 -b 115600
+### Przykłady użycia:
+
+**Tryb send (wysyłanie przez UART):**
+```bash
+# Bez wyświetlania
+./app -m send -p /dev/ttyUSB0 -b 115200 -i ../res/BadApple!!.mp4
+
+# Z wyświetlaniem i audio
+./app -m send -p /dev/ttyUSB0 -b 115200 -i ../res/BadApple!!.mp4 -d -a
+```
+
+**Tryb receive (odbieranie z UART):**
+```bash
+# Logowanie do konsoli (bez GUI)
+sudo ./app -m receive -p /dev/ttyUSB0 -b 115200
+
+# Z wyświetlaniem (wymaga X11)
+sudo -E DISPLAY=:1 ./app -m receive -p /dev/ttyUSB0 -b 115200 -d
+
+# Z wyświetlaniem na framebuffer (bez X11)
+sudo QT_QPA_PLATFORM=linuxfb ./app -m receive -p /dev/ttyUSB0 -b 115200 -d
+```
+
+**Tryb display (lokalne wyświetlanie):**
+```bash
 ./app -m display -d
 ```
+
+---
 
 ## Protokół ramki
 
@@ -227,3 +266,11 @@ make          # kompilacja
 | end | 1 bajt | 0x69 |
 
 Całkowity rozmiar ramki: 5 + (max_X * max_Y) bajtów
+
+---
+
+## Uwagi
+
+- Do uruchamiania z uprawnieniami UART może być potrzebne `sudo`
+- Dla trybu receive z GUI, użyj `sudo -E DISPLAY=:1` aby zachować zmienne X11
+- Bez flagi `-d` tryb receive działa bez GUI - loguje dane do konsoli

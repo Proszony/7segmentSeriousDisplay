@@ -4,6 +4,7 @@
 #include <thread>
 #include <atomic>
 #include <memory>
+#include <cstdlib>
 
 #include "video.h"
 #include "audio.h"
@@ -132,9 +133,12 @@ void run_send_mode(Params p, UART& uart) {
 
 void run_receive_mode(const Params& p, UART& uart) {
     cout << "Receive mode: listening on " << p.port << " at " << p.baudrate << " baud" << endl;
-    cout << "Press ESC to exit" << endl;
 
-    namedWindow("7seg_receive", WINDOW_NORMAL);
+    bool display_available = false;
+    if (p.draw) {
+        display_available = true;
+        cout << "Display enabled - press ESC to exit" << endl;
+    }
 
     vector<uint8_t> buffer;
     const size_t expected_min_size = 5;
@@ -144,7 +148,8 @@ void run_receive_mode(const Params& p, UART& uart) {
     {
         auto data = uart.read(256, 100);
         if (data.empty()) {
-            if (waitKey(1) == 27) break;
+            if (display_available && waitKey(1) == 27) break;
+            if (!display_available) this_thread::sleep_for(chrono::milliseconds(100));
             continue;
         }
 
@@ -179,7 +184,18 @@ void run_receive_mode(const Params& p, UART& uart) {
                 vector<uint8_t> frame_data(buffer.begin(), buffer.begin() + frame_size);
                 Frame f = deserialize(frame_data);
                 
-                display_frame(f, p.seg_color);
+                if (display_available) {
+                    display_frame(f, p.seg_color);
+                } else {
+                    static int frame_count = 0;
+                    frame_count++;
+                    if (frame_count % 30 == 0) {
+                        cout << "Received frame " << frame_count 
+                             << " (X=" << static_cast<int>(f.max_X) 
+                             << ", Y=" << static_cast<int>(f.max_Y) 
+                             << ", " << f.cells.size() << " bytes)" << endl;
+                    }
+                }
                 
                 buffer.erase(buffer.begin(), buffer.begin() + frame_size);
             } catch (const exception& e) {
@@ -188,7 +204,7 @@ void run_receive_mode(const Params& p, UART& uart) {
             }
         }
 
-        if (waitKey(1) == 27) break;
+        if (display_available && waitKey(1) == 27) break;
     }
 }
 

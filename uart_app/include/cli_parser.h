@@ -15,7 +15,7 @@ struct Params {
 
     std::string mode = "send";
     std::string port = "/dev/ttyUSB0";
-    unsigned int baudrate = 115600;
+    unsigned int baudrate = 115200;
 };
 
 Params parse_args(int argc, char** argv);

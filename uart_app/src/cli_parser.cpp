@@ -6,12 +6,12 @@
 #include <functional>
 
 static const char* help_text = R"(
-UART 7-Seg Simulation help.
+UART 7-Seg Dispaly help.
 Flags:
-  -m, --mode <mode>       : set mode (send|receive|display) [default: send]
-  -p, --port <path>      : UART port path [default: /dev/ttyUSB0]
-  -b, --baud <value>     : UART baudrate [default: 115600]
-  -inv,  --invert         : invert gray scale video
+  -m, --mode <mode>       		: set mode (send|receive|display) [default: send]
+  -p, --port <path>     		: UART port path [default: /dev/ttyUSB0]
+  -b, --baud <value>     		: UART baudrate [default: 115200]
+  -inv,  --invert         		: invert gray scale video
   -th <value>  --threshold <value>	: set threshold
   -fps <value>	--fpscap <value>	: set fps cap
   -res <w,h>	--resolution <w,h>	: set display resolution
@@ -25,7 +25,7 @@ Flags:
 Defaults:
   mode                    : send
   port                    : /dev/ttyUSB0
-  baudrate                : 115600
+  baudrate                : 115200
   file(from res directory): BadApple!!.mp4
   threshold               : 0.5
   fps                     : 30
@@ -118,4 +118,5 @@ Params parse_args(int argc, char** argv)
     }
 
     return p;
+
 }
