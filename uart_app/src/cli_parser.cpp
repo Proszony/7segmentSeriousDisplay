@@ -23,15 +23,15 @@ Flags:
   -h		--help			: show this message
 
 Defaults:
-  mode                    : send
-  port                    : /dev/ttyUSB0
-  baudrate                : 115200
-  file(from res directory): BadApple!!.mp4
-  threshold               : 0.5
-  fps                     : 30
-  color                   : (255,0,0)
-  res                     : (640, 360)
-  div                     : (32, 12)
+  mode			: send
+  port			: /dev/ttyUSB0
+  baudrate		: 115200
+  file(from res dir)	: BadApple!!.mp4
+  threshold		: 0.5
+  fps			: 30
+  color			: (255,0,0)
+  res			: (640, 360)
+  div			: (32, 12)
 )";
 
 void print_help() {
