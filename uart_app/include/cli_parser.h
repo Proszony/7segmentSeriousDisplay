@@ -10,7 +10,7 @@ struct Params {
     bool draw = false;
     float max_fps = -1.0f;
     cv::Size res = cv::Size(640, 360);
-    cv::Size div = cv::Size(32, 12);
+    cv::Size div = cv::Size(32, 24);
     cv::Scalar seg_color = cv::Scalar(0, 0, 255);
 
     std::string mode = "send";

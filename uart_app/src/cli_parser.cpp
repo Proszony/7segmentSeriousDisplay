@@ -31,7 +31,7 @@ Defaults:
   fps			: 30
   color			: (255,0,0)
   res			: (640, 360)
-  div			: (32, 12)
+  div			: (32, 24)
 )";
 
 void print_help() {

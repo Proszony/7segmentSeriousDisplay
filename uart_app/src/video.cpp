@@ -127,8 +127,10 @@ void display_frame(const Frame& f, Scalar seg_color) {
 
     int nx = f.max_X;
     int ny = f.max_Y;
-    int cell_w = 20;
-    int cell_h = 40;
+    int window_h = 480;
+    int window_w = 640;
+    int cell_w = window_w / nx;
+    int cell_h = window_h / ny;
 
     Size res(nx * cell_w, ny * cell_h);
 
