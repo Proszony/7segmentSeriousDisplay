@@ -8,6 +8,10 @@
 #include <sys/ioctl.h>
 #include <algorithm>
 #include <chrono>
+#include <thread>
+#include <mutex>
+#include <atomic>
+#include <csignal>
 #include <linux/spi/spidev.h>
 #include <gpiod.h>
 
@@ -156,6 +160,7 @@ struct Module {
     int chips;
     struct gpiod_line *cs_line;
     uint8_t fb[MAX_CHIPS][8];
+    std::mutex mtx;
 
     Module() : chips(0), cs_line(nullptr) { memset(fb, 0, sizeof(fb)); }
 
@@ -174,10 +179,15 @@ struct Module {
             return;
         }
 
+        resync();
+    }
+
+    void resync(void)
+    {
+        if (!cs_line) return;
         for (auto &c : init_cmds) {
             uint8_t buf[MAX_CHIPS * 2];
             for (int ci = 0; ci < chips; ci++) {
-                int chip = chips - 1 - ci;
                 buf[ci * 2 + 0] = c[0];
                 buf[ci * 2 + 1] = c[1];
             }
@@ -192,18 +202,24 @@ struct Module {
     {
         if (x < 0 || x >= MODULE_W || y < 0 || y >= chips) return;
         int d = 7 - x;
+        std::lock_guard<std::mutex> lock(mtx);
         fb[y][d] = max_val;
     }
 
     void refresh(void)
     {
         if (!cs_line) return;
+        uint8_t snap[MAX_CHIPS][8];
+        {
+            std::lock_guard<std::mutex> lock(mtx);
+            memcpy(snap, fb, sizeof(fb));
+        }
         for (int d = 0; d < 8; d++) {
             uint8_t buf[MAX_CHIPS * 2];
             for (int ci = 0; ci < chips; ci++) {
                 int c = chips - 1 - ci;
                 buf[ci * 2 + 0] = REG_DIGIT0 + d;
-                buf[ci * 2 + 1] = fb[c][d];
+                buf[ci * 2 + 1] = snap[c][d];
             }
             gpiod_line_set_value(cs_line, 0);
             spi_tx(buf, chips * 2);
@@ -215,11 +231,15 @@ struct Module {
     void clear(void)
     {
         if (!cs_line) return;
+        uint8_t snap[MAX_CHIPS][8];
+        {
+            std::lock_guard<std::mutex> lock(mtx);
+            memset(snap, 0, sizeof(snap));
+            memcpy(fb, snap, sizeof(fb));
+        }
         for (int d = 0; d < 8; d++) {
             uint8_t buf[MAX_CHIPS * 2];
             for (int ci = 0; ci < chips; ci++) {
-                int c = chips - 1 - ci;
-                fb[c][d] = 0;
                 buf[ci * 2 + 0] = REG_DIGIT0 + d;
                 buf[ci * 2 + 1] = 0x00;
             }
@@ -306,9 +326,22 @@ struct Display {
         for (int i = 0; i < mx * my; i++)
             modules[i].clear();
     }
+
+    void resync(void)
+    {
+        for (int i = 0; i < mx * my; i++)
+            modules[i].resync();
+    }
 };
 
 // ---- Main ----
+
+static std::atomic<bool> g_running(true);
+
+static void handle_sigint(int)
+{
+    g_running.store(false);
+}
 
 int main(int argc, char **argv)
 {
@@ -346,10 +379,28 @@ int main(int argc, char **argv)
 
     display.clear();
 
+    std::signal(SIGINT, handle_sigint);
+    std::signal(SIGTERM, handle_sigint);
+
+    std::thread refresh_thread([&] {
+        unsigned long resync_cycles = 0;
+        if (p.reinit_interval > 0 && p.refresh_ms > 0)
+            resync_cycles = static_cast<unsigned long>(p.reinit_interval) * 1000 / p.refresh_ms;
+        unsigned long cycle = 0;
+        while (g_running) {
+            display.refresh();
+            if (resync_cycles > 0 && ++cycle % resync_cycles == 0)
+                display.resync();
+            std::this_thread::sleep_for(std::chrono::milliseconds(p.refresh_ms));
+        }
+    });
+
     // Init UART
     UART uart;
     if (!uart.open(p.port, p.baud)) {
         std::cerr << "UART open failed\n";
+        g_running.store(false);
+        refresh_thread.join();
         display.release_cs();
         gpio_cleanup();
         spi_cleanup();
@@ -363,7 +414,7 @@ int main(int argc, char **argv)
     int frame_count = 0;
     auto last_report = std::chrono::steady_clock::now();
 
-    while (true)
+    while (g_running)
     {
         auto data = uart.read(256, 50);
         if (data.empty()) {
@@ -399,7 +450,6 @@ int main(int argc, char **argv)
                 Frame f = deserialize(raw);
 
                 display.set_frame(f);
-                display.refresh();
 
                 frame_count++;
                 auto now = std::chrono::steady_clock::now();
@@ -420,8 +470,10 @@ int main(int argc, char **argv)
         }
     }
 
-    // Cleanup (unreachable without Ctrl+C)
+    // Cleanup
     uart.close();
+    g_running.store(false);
+    refresh_thread.join();
     display.clear();
     display.release_cs();
     gpio_cleanup();

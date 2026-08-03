@@ -53,6 +53,8 @@ void config_load(Params &p, const std::string &path)
         else if (key == "cs-pins")   config_set_cs_pins(p, val);
         else if (key == "mod-x")     p.modules_x = std::stoi(val);
         else if (key == "mod-y")     p.modules_y = std::stoi(val);
+        else if (key == "refresh-ms") p.refresh_ms = std::stoi(val);
+        else if (key == "reinit-interval") p.reinit_interval = std::stoi(val);
         else                         std::cerr << "Config: unknown key: " << key << "\n";
     }
 }
