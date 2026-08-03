@@ -19,6 +19,7 @@ bool UART::open(const std::string& port, unsigned int baudrate) {
     }
 
     fd = ::open(port.c_str(), O_RDWR | O_NOCTTY);
+    bool is_acm = (port.find("ttyAMC") != std::string::npos);
     if (fd < 0) {
         std::cerr << "UART: Failed to open " << port << ": " << strerror(errno) << std::endl;
         return false;
@@ -48,9 +49,10 @@ bool UART::open(const std::string& port, unsigned int baudrate) {
             std::cerr << "UART: Unsupported baudrate " << baudrate << ", using 115200" << std::endl;
             speed = B115200;
     }
-
-    cfsetospeed(&tty, speed);
-    cfsetispeed(&tty, speed);
+    if(!is_acm){
+    	cfsetospeed(&tty, speed);
+    	cfsetispeed(&tty, speed);
+    }
 
     cfmakeraw(&tty);
 
@@ -100,8 +102,8 @@ bool UART::write(const std::vector<uint8_t>& data) {
         std::cerr << "UART: Write error: " << strerror(errno) << std::endl;
         return false;
     }
-
-    tcdrain(fd);
+    
+    //tcdrain(fd);
     return true;
 }
 

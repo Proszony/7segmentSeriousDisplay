@@ -4,3 +4,6 @@
 # Backups
 *.bk
 *.bak
+
+# Tests
+./testing

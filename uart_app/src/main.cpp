@@ -29,7 +29,11 @@ void run_send_mode(Params p, UART& uart) {
     if(p.max_fps <= 0) p.max_fps = cap.get(CAP_PROP_FPS);
     float frame_time = 1.0f / p.max_fps;
 
-    Mat frame, gray, frame_out(p.res, CV_8UC3);
+    Size eff_res = p.res;
+    if (p.rotation == 90 || p.rotation == 270)
+        eff_res = Size(p.res.height, p.res.width);
+
+    Mat frame, gray, frame_out(eff_res, CV_8UC3);
 
     auto prev = chrono::high_resolution_clock::now();
     int frame_count = 0;
@@ -37,8 +41,8 @@ void run_send_mode(Params p, UART& uart) {
     int nx = p.div.width;
     int ny = p.div.height;
 
-    int cell_w = p.res.width / nx;
-    int cell_h = p.res.height / ny;
+    int cell_w = eff_res.width / nx;
+    int cell_h = eff_res.height / ny;
 
     struct Cell{
         Point origin;
@@ -55,7 +59,7 @@ void run_send_mode(Params p, UART& uart) {
 
     if (p.draw) {
         namedWindow("7seg_binary", WINDOW_NORMAL);
-        resizeWindow("7seg_binary", p.res.width, p.res.height);
+        resizeWindow("7seg_binary", eff_res.width, eff_res.height);
     }
 
     auto fx = [](float k, int cell_w){ return max(1, int(k * cell_w + 0.5f)); };
@@ -68,7 +72,11 @@ void run_send_mode(Params p, UART& uart) {
         if(!cap.read(frame))
             break;
 
-        resize(frame, frame, p.res);
+        if      (p.rotation == 90)  rotate(frame, frame, ROTATE_90_CLOCKWISE);
+        else if (p.rotation == 180) rotate(frame, frame, ROTATE_180);
+        else if (p.rotation == 270) rotate(frame, frame, ROTATE_90_COUNTERCLOCKWISE);
+
+        resize(frame, frame, eff_res);
         cvtColor(frame, gray, COLOR_BGR2GRAY);
         gray.convertTo(gray, CV_32F, 1.0/255.0);
 
@@ -91,7 +99,7 @@ void run_send_mode(Params p, UART& uart) {
             };
 
             for(int seg = 0; seg < 7; seg++){
-                Rect roi = SEG[seg] & Rect(0,0,p.res.width,p.res.height);
+                Rect roi = SEG[seg] & Rect(0,0,eff_res.width,eff_res.height);
                 segStates[i].on[seg] = (roi.width > 0 && roi.height > 0 && mean(gray(roi))[0] >= p.thresh);
             }
 
@@ -210,7 +218,7 @@ void run_receive_mode(const Params& p, UART& uart) {
 
 void run_display_mode(const Params& p) {
     vector<SegState> segStates;
-    run_video(p.filename, p.thresh, p.invert_flag, p.res, p.div, p.max_fps, p.draw, p.seg_color, segStates);
+    run_video(p.filename, p.thresh, p.invert_flag, p.res, p.div, p.max_fps, p.rotation, p.draw, p.seg_color, segStates);
 }
 
 int main(int argc, char **argv)

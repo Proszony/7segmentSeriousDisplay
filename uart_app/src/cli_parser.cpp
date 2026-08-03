@@ -16,6 +16,7 @@ Flags:
   -fps <value>	--fpscap <value>	: set fps cap
   -res <w,h>	--resolution <w,h>	: set display resolution
   -div <nx,ny>	--dividents <nx,ny>	: set number of segments per axis
+  -rot <deg>	--rotate <deg>		: rotate video (0|90|180|270)
   -c <r,g,b>	--color <r,g,b>		: set 7 segment display color
   -d      	--draw			: show simulation
   -a      	--audio			: play audio
@@ -94,6 +95,9 @@ Params parse_args(int argc, char** argv)
         {"-div", [&](int &i, char** argv){ if(i+1<argc) p.div = parse_size(argv[++i]); }},
         {"--dividents", [&](int &i, char** argv){ if(i+1<argc) p.div = parse_size(argv[++i]); }},
 
+        {"-rot", [&](int &i, char** argv){ if(i+1<argc) p.rotation = std::stoi(argv[++i]); }},
+        {"--rotate", [&](int &i, char** argv){ if(i+1<argc) p.rotation = std::stoi(argv[++i]); }},
+
         {"-inv", [&](int &i, char**){ p.invert_flag = true; }},
         {"--invert", [&](int &i, char**){ p.invert_flag = true; }},
 
@@ -115,6 +119,11 @@ Params parse_args(int argc, char** argv)
         } else {
             std::cout << "Unknown flag: " << arg << std::endl;
         }
+    }
+
+    if(p.rotation != 0 && p.rotation != 90 && p.rotation != 180 && p.rotation != 270){
+        std::cerr << "Invalid rotation: " << p.rotation << " (allowed: 0|90|180|270)" << std::endl;
+        std::exit(1);
     }
 
     return p;

@@ -7,13 +7,13 @@
 
 using namespace cv;
 using namespace std;
-
 void run_video(const string &filename,
                float thresh,
                bool invert_flag,
                Size res,
                Size div,
                float max_fps,
+               int rotation,
                bool draw,
                Scalar seg_color,
                vector<SegState>& segStates)
@@ -27,7 +27,11 @@ void run_video(const string &filename,
     if(max_fps <= 0) max_fps = cap.get(CAP_PROP_FPS);
     float frame_time = 1.0f / max_fps;
 
-    Mat frame, gray, frame_out(res, CV_8UC3);
+    Size eff_res = res;
+    if (rotation == 90 || rotation == 270)
+        eff_res = Size(res.height, res.width);
+
+    Mat frame, gray, frame_out(eff_res, CV_8UC3);
 
     auto prev = chrono::high_resolution_clock::now();
     int frame_count = 0;
@@ -35,8 +39,8 @@ void run_video(const string &filename,
     int nx = div.width;
     int ny = div.height;
 
-    int cell_w = res.width / nx;
-    int cell_h = res.height / ny;
+    int cell_w = eff_res.width / nx;
+    int cell_h = eff_res.height / ny;
 
     struct Cell{
         Point origin;
@@ -53,7 +57,7 @@ void run_video(const string &filename,
 
     if (draw) {
         namedWindow("7seg_binary", WINDOW_NORMAL);
-        resizeWindow("7seg_binary", res.width, res.height);
+        resizeWindow("7seg_binary", eff_res.width, eff_res.height);
     }
 
     auto fx = [](float k, int cell_w){ return max(1, int(k * cell_w + 0.5f)); };
@@ -66,7 +70,11 @@ void run_video(const string &filename,
         if(!cap.read(frame))
             break;
 
-        resize(frame, frame, res);
+        if      (rotation == 90)  rotate(frame, frame, ROTATE_90_CLOCKWISE);
+        else if (rotation == 180) rotate(frame, frame, ROTATE_180);
+        else if (rotation == 270) rotate(frame, frame, ROTATE_90_COUNTERCLOCKWISE);
+
+        resize(frame, frame, eff_res);
         cvtColor(frame, gray, COLOR_BGR2GRAY);
         gray.convertTo(gray, CV_32F, 1.0/255.0);
 
@@ -89,7 +97,7 @@ void run_video(const string &filename,
             };
 
             for(int seg = 0; seg < 7; seg++){
-                Rect roi = SEG[seg] & Rect(0,0,res.width,res.height);
+                Rect roi = SEG[seg] & Rect(0,0,eff_res.width,eff_res.height);
                 segStates[i].on[seg] = (roi.width > 0 && roi.height > 0 && mean(gray(roi))[0] >= thresh);
             }
 

@@ -12,6 +12,7 @@ void run_video(const std::string& filename,
                cv::Size res,
                cv::Size div,
                float max_fps,
+               int rotation,
                bool draw,
                cv::Scalar seg_color,
                std::vector<SegState>& segStates);
