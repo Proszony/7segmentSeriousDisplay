@@ -1,7 +1,7 @@
 CXX := g++
 CXXFLAGS := -O2 -Wall -std=c++17 -pthread
-PKG_CFLAGS := $(shell pkg-config --cflags opencv4)
-PKG_LIBS := $(shell pkg-config --libs opencv4 sdl2)
+PKG_CFLAGS := $(shell pkg-config --cflags opencv5)
+PKG_LIBS := $(shell pkg-config --libs opencv5 sdl2)
 FFMPEG_LIBS := -lavformat -lavcodec -lavutil -lswresample
 
 SRCS := src/main.cpp src/video.cpp src/cli_parser.cpp src/framing.cpp src/uart.cpp src/audio.cpp
@@ -17,6 +17,6 @@ build/%.o: src/%.cpp
 	$(CXX) $(CXXFLAGS) $(PKG_CFLAGS) -I include -c $< -o $@
 
 clean:
-	rm -rf /build #$(OBJS) $(TARGET)
+	rm -rf build $(OBJS) $(TARGET)
 
 .PHONY: all clean

@@ -1,5 +1,7 @@
 #include "video.h"
 #include <opencv2/opencv.hpp>
+#include <algorithm>
+#include <array>
 #include <iostream>
 #include <vector>
 #include <chrono>
@@ -7,6 +9,100 @@
 
 using namespace cv;
 using namespace std;
+
+namespace {
+    int fx(float k, int cell_w) { return std::max(1, int(k * cell_w + 0.5f)); }
+    int fy(float k, int cell_h) { return std::max(1, int(k * cell_h + 0.5f)); }
+}
+
+cv::Size effective_resolution(cv::Size res, int rotation)
+{
+    if (rotation == 90 || rotation == 270)
+        return cv::Size(res.height, res.width);
+    return res;
+}
+
+std::vector<Cell> build_cells(cv::Size eff_res, cv::Size div)
+{
+    const int nx = div.width;
+    const int ny = div.height;
+    const int cell_w = eff_res.width / nx;
+    const int cell_h = eff_res.height / ny;
+
+    std::vector<Cell> cells;
+    cells.reserve(static_cast<size_t>(nx) * static_cast<size_t>(ny));
+    for (int j = 0; j < ny; ++j) {
+        for (int i = 0; i < nx; ++i) {
+            cells.push_back({ cv::Point(i * cell_w, j * cell_h), cell_w, cell_h });
+        }
+    }
+    return cells;
+}
+
+std::array<cv::Rect, 7> segment_rects(const Cell& c)
+{
+    return {{
+        cv::Rect(c.origin.x + fx(0.20f, c.w), c.origin.y + fy(0.05f, c.h), fx(0.60f, c.w), fy(0.12f, c.h)),
+        cv::Rect(c.origin.x + fx(0.78f, c.w), c.origin.y + fy(0.10f, c.h), fx(0.12f, c.w), fy(0.40f, c.h)),
+        cv::Rect(c.origin.x + fx(0.78f, c.w), c.origin.y + fy(0.50f, c.h), fx(0.12f, c.w), fy(0.40f, c.h)),
+        cv::Rect(c.origin.x + fx(0.20f, c.w), c.origin.y + fy(0.85f, c.h), fx(0.60f, c.w), fy(0.12f, c.h)),
+        cv::Rect(c.origin.x + fx(0.10f, c.w), c.origin.y + fy(0.50f, c.h), fx(0.12f, c.w), fy(0.40f, c.h)),
+        cv::Rect(c.origin.x + fx(0.10f, c.w), c.origin.y + fy(0.10f, c.h), fx(0.12f, c.w), fy(0.40f, c.h)),
+        cv::Rect(c.origin.x + fx(0.20f, c.w), c.origin.y + fy(0.45f, c.h), fx(0.60f, c.w), fy(0.12f, c.h))
+    }};
+}
+
+void prepare_frame(cv::Mat& frame, cv::Mat& gray, cv::Size eff_res,
+                   int rotation, bool invert)
+{
+    if      (rotation == 90)  rotate(frame, frame, ROTATE_90_CLOCKWISE);
+    else if (rotation == 180) rotate(frame, frame, ROTATE_180);
+    else if (rotation == 270) rotate(frame, frame, ROTATE_90_COUNTERCLOCKWISE);
+
+    resize(frame, frame, eff_res);
+    cvtColor(frame, gray, COLOR_BGR2GRAY);
+    gray.convertTo(gray, CV_32F, 1.0/255.0);
+
+    if (invert)
+        gray = 1.0f - gray;
+}
+
+void process_frame_to_segstates(const cv::Mat& gray,
+                                const std::vector<Cell>& cells,
+                                float thresh,
+                                std::vector<SegState>& segStates)
+{
+    if (segStates.size() != cells.size())
+        segStates.resize(cells.size());
+
+    const cv::Rect bounds(0, 0, gray.cols, gray.rows);
+
+    for (size_t i = 0; i < cells.size(); ++i) {
+        const auto rects = segment_rects(cells[i]);
+
+        for (int seg = 0; seg < 7; ++seg) {
+            const cv::Rect roi = rects[seg] & bounds;
+            segStates[i].on[seg] = (roi.width > 0 && roi.height > 0 &&
+                                    mean(gray(roi))[0] >= thresh);
+        }
+    }
+}
+
+void draw_segstates(cv::Mat& out,
+                    const std::vector<Cell>& cells,
+                    const std::vector<SegState>& segStates,
+                    cv::Scalar color)
+{
+    for (size_t i = 0; i < cells.size(); ++i) {
+        const auto rects = segment_rects(cells[i]);
+
+        for (int seg = 0; seg < 7; ++seg) {
+            if (segStates[i].on[seg])
+                rectangle(out, rects[seg], color, FILLED);
+        }
+    }
+}
+
 void run_video(const string &filename,
                float thresh,
                bool invert_flag,
@@ -27,41 +123,20 @@ void run_video(const string &filename,
     if(max_fps <= 0) max_fps = cap.get(CAP_PROP_FPS);
     float frame_time = 1.0f / max_fps;
 
-    Size eff_res = res;
-    if (rotation == 90 || rotation == 270)
-        eff_res = Size(res.height, res.width);
+    Size eff_res = effective_resolution(res, rotation);
 
     Mat frame, gray, frame_out(eff_res, CV_8UC3);
 
     auto prev = chrono::high_resolution_clock::now();
     int frame_count = 0;
 
-    int nx = div.width;
-    int ny = div.height;
-
-    int cell_w = eff_res.width / nx;
-    int cell_h = eff_res.height / ny;
-
-    struct Cell{
-        Point origin;
-        int w, h;
-    };
-    vector<Cell> cells;
-    for(int j = 0; j < ny; j++){
-        for(int i = 0; i < nx; i++){
-            cells.push_back({ Point(i * cell_w, j * cell_h), cell_w, cell_h });
-        }
-    }
-
+    vector<Cell> cells = build_cells(eff_res, div);
     segStates.resize(cells.size());
 
     if (draw) {
         namedWindow("7seg_binary", WINDOW_NORMAL);
         resizeWindow("7seg_binary", eff_res.width, eff_res.height);
     }
-
-    auto fx = [](float k, int cell_w){ return max(1, int(k * cell_w + 0.5f)); };
-    auto fy = [](float k, int cell_h){ return max(1, int(k * cell_h + 0.5f)); };
 
     while(true)
     {
@@ -70,46 +145,14 @@ void run_video(const string &filename,
         if(!cap.read(frame))
             break;
 
-        if      (rotation == 90)  rotate(frame, frame, ROTATE_90_CLOCKWISE);
-        else if (rotation == 180) rotate(frame, frame, ROTATE_180);
-        else if (rotation == 270) rotate(frame, frame, ROTATE_90_COUNTERCLOCKWISE);
+        prepare_frame(frame, gray, eff_res, rotation, invert_flag);
 
-        resize(frame, frame, eff_res);
-        cvtColor(frame, gray, COLOR_BGR2GRAY);
-        gray.convertTo(gray, CV_32F, 1.0/255.0);
+        process_frame_to_segstates(gray, cells, thresh, segStates);
 
-        if(invert_flag)
-            gray = 1.0f - gray;
+        if(draw){
+            frame_out = Scalar(0,0,0);
+            draw_segstates(frame_out, cells, segStates, seg_color);
 
-        frame_out = Scalar(0,0,0);
-
-        for(size_t i = 0; i < cells.size(); i++){
-            const Cell &c = cells[i];
-
-            vector<Rect> SEG = {
-                Rect(c.origin.x + fx(0.20f, c.w), c.origin.y + fy(0.05f, c.h), fx(0.60f, c.w), fy(0.12f, c.h)),
-                Rect(c.origin.x + fx(0.78f, c.w), c.origin.y + fy(0.10f, c.h), fx(0.12f, c.w), fy(0.40f, c.h)),
-                Rect(c.origin.x + fx(0.78f, c.w), c.origin.y + fy(0.50f, c.h), fx(0.12f, c.w), fy(0.40f, c.h)),
-                Rect(c.origin.x + fx(0.20f, c.w), c.origin.y + fy(0.85f, c.h), fx(0.60f, c.w), fy(0.12f, c.h)),
-                Rect(c.origin.x + fx(0.10f, c.w), c.origin.y + fy(0.50f, c.h), fx(0.12f, c.w), fy(0.40f, c.h)),
-                Rect(c.origin.x + fx(0.10f, c.w), c.origin.y + fy(0.10f, c.h), fx(0.12f, c.w), fy(0.40f, c.h)),
-                Rect(c.origin.x + fx(0.20f, c.w), c.origin.y + fy(0.45f, c.h), fx(0.60f, c.w), fy(0.12f, c.h))
-            };
-
-            for(int seg = 0; seg < 7; seg++){
-                Rect roi = SEG[seg] & Rect(0,0,eff_res.width,eff_res.height);
-                segStates[i].on[seg] = (roi.width > 0 && roi.height > 0 && mean(gray(roi))[0] >= thresh);
-            }
-
-            if(draw){
-                for(int seg = 0; seg < 7; seg++){
-                    if(segStates[i].on[seg])
-                        rectangle(frame_out, SEG[seg], seg_color, FILLED);
-                }
-            }
-        }
-
-        if (draw) {
             imshow("7seg_binary", frame_out);
             if(waitKey(1) == 27)
                 break;
@@ -135,6 +178,10 @@ void display_frame(const Frame& f, Scalar seg_color) {
 
     int nx = f.max_X;
     int ny = f.max_Y;
+
+    if (nx == 0 || ny == 0)
+        return;
+
     int window_h = 480;
     int window_w = 640;
     int cell_w = window_w / nx;
@@ -156,21 +203,12 @@ void display_frame(const Frame& f, Scalar seg_color) {
             if (idx >= static_cast<int>(f.cells.size())) break;
 
             uint8_t b = f.cells[idx];
-            Point origin(i * cell_w, j * cell_h);
-
-            vector<Rect> SEG = {
-                Rect(origin.x + int(0.20f * cell_w), origin.y + int(0.05f * cell_h), int(0.60f * cell_w), int(0.12f * cell_h)),
-                Rect(origin.x + int(0.78f * cell_w), origin.y + int(0.10f * cell_h), int(0.12f * cell_w), int(0.40f * cell_h)),
-                Rect(origin.x + int(0.78f * cell_w), origin.y + int(0.50f * cell_h), int(0.12f * cell_w), int(0.40f * cell_h)),
-                Rect(origin.x + int(0.20f * cell_w), origin.y + int(0.85f * cell_h), int(0.60f * cell_w), int(0.12f * cell_h)),
-                Rect(origin.x + int(0.10f * cell_w), origin.y + int(0.50f * cell_h), int(0.12f * cell_w), int(0.40f * cell_h)),
-                Rect(origin.x + int(0.10f * cell_w), origin.y + int(0.10f * cell_h), int(0.12f * cell_w), int(0.40f * cell_h)),
-                Rect(origin.x + int(0.20f * cell_w), origin.y + int(0.45f * cell_h), int(0.60f * cell_w), int(0.12f * cell_h))
-            };
+            Cell c{ Point(i * cell_w, j * cell_h), cell_w, cell_h };
+            const auto rects = segment_rects(c);
 
             for (int seg = 0; seg < 7; seg++) {
                 if (b & (1 << seg)) {
-                    rectangle(frame_out, SEG[seg], seg_color, FILLED);
+                    rectangle(frame_out, rects[seg], seg_color, FILLED);
                 }
             }
         }

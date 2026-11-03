@@ -4,6 +4,7 @@
 #include <sstream>
 #include <unordered_map>
 #include <functional>
+#include <optional>
 
 static const char* help_text = R"(
 UART 7-Seg Dispaly help.
@@ -13,7 +14,7 @@ Flags:
   -b, --baud <value>     		: UART baudrate [default: 115200]
   -inv,  --invert         		: invert gray scale video
   -th <value>  --threshold <value>	: set threshold
-  -fps <value>	--fpscap <value>	: set fps cap
+  -fps <value>	--fpscap <value>	: set fps cap (-1 for automatic fps)
   -res <w,h>	--resolution <w,h>	: set display resolution
   -div <nx,ny>	--dividents <nx,ny>	: set number of segments per axis
   -rot <deg>	--rotate <deg>		: rotate video (0|90|180|270)
@@ -63,8 +64,38 @@ cv::Scalar parse_color(const std::string &arg){
     return cv::Scalar(b,g,r);
 }
 
-Params parse_args(int argc, char** argv)
-{
+std::optional<std::string> validate_params(const Params& p){
+
+	if(!std::isfinite(p.thresh) || p.thresh < 0.0f || p.thresh > 1.0f){
+		return "Threshold must be finite and in range of [0,1]";
+	}
+	if(!std::isfinite(p.max_fps) || p.max_fps == 0.0f){
+		return "Fps must be finite and not a zero";
+	}
+	if(p.res.width <= 0 || p.res.height <= 0){
+		return "Resolution must be positive";
+	}
+	if(p.mode != "send" && p.mode !=  "receive" && p.mode != "display"){
+		return "Unknown mode";
+	} 
+	if(p.div.width < 1 || p.div.height < 1){
+		if(p.mode != "display" && (p.div.height > 255 || p.div.width > 255)){
+			return "Invalid number of segments. Div must be between [1,255] for send and receive modes";
+		}
+		return "Invalid number of segments. Number must be positive"; 
+	}
+	
+	const cv::Size eff_res = (p.rotation == 90 || p.rotation == 270) ? cv::Size(p.res.height, p.res.width) : p.res;
+
+	if(p.div.width > eff_res.width || p.div.height > eff_res.height){
+		return "Number of segments exceeds resolution";
+	}
+
+    return std::nullopt;
+}
+
+
+Params parse_args(int argc, char** argv){
     Params p;
 
     std::unordered_map<std::string, std::function<void(int&, char**)>> handlers = {
@@ -124,6 +155,11 @@ Params parse_args(int argc, char** argv)
     if(p.rotation != 0 && p.rotation != 90 && p.rotation != 180 && p.rotation != 270){
         std::cerr << "Invalid rotation: " << p.rotation << " (allowed: 0|90|180|270)" << std::endl;
         std::exit(1);
+    }
+
+    if(auto err = validate_params(p)){
+    	std::cerr << *err << std::endl;
+	std::exit(1);
     }
 
     return p;

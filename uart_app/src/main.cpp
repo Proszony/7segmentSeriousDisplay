@@ -17,7 +17,7 @@ using namespace cv;
 
 atomic<bool> stop_audio(false);
 
-void run_send_mode(Params p, UART& uart) {
+void run_send_mode(Params p, UART& uart)<{
     vector<SegState> segStates;
     
     VideoCapture cap(p.filename);
@@ -29,32 +29,14 @@ void run_send_mode(Params p, UART& uart) {
     if(p.max_fps <= 0) p.max_fps = cap.get(CAP_PROP_FPS);
     float frame_time = 1.0f / p.max_fps;
 
-    Size eff_res = p.res;
-    if (p.rotation == 90 || p.rotation == 270)
-        eff_res = Size(p.res.height, p.res.width);
+    Size eff_res = effective_resolution(p.res, p.rotation);
 
     Mat frame, gray, frame_out(eff_res, CV_8UC3);
 
     auto prev = chrono::high_resolution_clock::now();
     int frame_count = 0;
 
-    int nx = p.div.width;
-    int ny = p.div.height;
-
-    int cell_w = eff_res.width / nx;
-    int cell_h = eff_res.height / ny;
-
-    struct Cell{
-        Point origin;
-        int w, h;
-    };
-    vector<Cell> cells;
-    for(int j = 0; j < ny; j++){
-        for(int i = 0; i < nx; i++){
-            cells.push_back({ Point(i * cell_w, j * cell_h), cell_w, cell_h });
-        }
-    }
-
+    vector<Cell> cells = build_cells(eff_res, p.div);
     segStates.resize(cells.size());
 
     if (p.draw) {
@@ -62,56 +44,24 @@ void run_send_mode(Params p, UART& uart) {
         resizeWindow("7seg_binary", eff_res.width, eff_res.height);
     }
 
-    auto fx = [](float k, int cell_w){ return max(1, int(k * cell_w + 0.5f)); };
-    auto fy = [](float k, int cell_h){ return max(1, int(k * cell_h + 0.5f)); };
-
-    while(true)
-    {
+    while(true){
         auto start = chrono::high_resolution_clock::now();
 
         if(!cap.read(frame))
             break;
 
-        if      (p.rotation == 90)  rotate(frame, frame, ROTATE_90_CLOCKWISE);
-        else if (p.rotation == 180) rotate(frame, frame, ROTATE_180);
-        else if (p.rotation == 270) rotate(frame, frame, ROTATE_90_COUNTERCLOCKWISE);
+        prepare_frame(frame, gray, eff_res, p.rotation, p.invert_flag);
 
-        resize(frame, frame, eff_res);
-        cvtColor(frame, gray, COLOR_BGR2GRAY);
-        gray.convertTo(gray, CV_32F, 1.0/255.0);
+        process_frame_to_segstates(gray, cells, p.thresh, segStates);
 
-        if(p.invert_flag)
-            gray = 1.0f - gray;
-
-        frame_out = Scalar(0,0,0);
-
-        for(size_t i = 0; i < cells.size(); i++){
-            const Cell &c = cells[i];
-
-            vector<Rect> SEG = {
-                Rect(c.origin.x + fx(0.20f, c.w), c.origin.y + fy(0.05f, c.h), fx(0.60f, c.w), fy(0.12f, c.h)),
-                Rect(c.origin.x + fx(0.78f, c.w), c.origin.y + fy(0.10f, c.h), fx(0.12f, c.w), fy(0.40f, c.h)),
-                Rect(c.origin.x + fx(0.78f, c.w), c.origin.y + fy(0.50f, c.h), fx(0.12f, c.w), fy(0.40f, c.h)),
-                Rect(c.origin.x + fx(0.20f, c.w), c.origin.y + fy(0.85f, c.h), fx(0.60f, c.w), fy(0.12f, c.h)),
-                Rect(c.origin.x + fx(0.10f, c.w), c.origin.y + fy(0.50f, c.h), fx(0.12f, c.w), fy(0.40f, c.h)),
-                Rect(c.origin.x + fx(0.10f, c.w), c.origin.y + fy(0.10f, c.h), fx(0.12f, c.w), fy(0.40f, c.h)),
-                Rect(c.origin.x + fx(0.20f, c.w), c.origin.y + fy(0.45f, c.h), fx(0.60f, c.w), fy(0.12f, c.h))
-            };
-
-            for(int seg = 0; seg < 7; seg++){
-                Rect roi = SEG[seg] & Rect(0,0,eff_res.width,eff_res.height);
-                segStates[i].on[seg] = (roi.width > 0 && roi.height > 0 && mean(gray(roi))[0] >= p.thresh);
-            }
-
-            if(p.draw){
-                for(int seg = 0; seg < 7; seg++){
-                    if(segStates[i].on[seg])
-                        rectangle(frame_out, SEG[seg], p.seg_color, FILLED);
-                }
-            }
+        if(p.draw){
+            frame_out = Scalar(0,0,0);
+            draw_segstates(frame_out, cells, segStates, p.seg_color);
         }
 
-        Frame f = create_frame(segStates, nx, ny);
+        Frame f = create_frame(segStates,
+                               static_cast<uint8_t>(p.div.width),
+                               static_cast<uint8_t>(p.div.height));
         vector<uint8_t> data = serialize(f);
         
         if (!uart.write(data)) {
@@ -139,7 +89,7 @@ void run_send_mode(Params p, UART& uart) {
     }
 }
 
-void run_receive_mode(const Params& p, UART& uart) {
+void run_receive_mode(const Params& p, UART& uart){
     cout << "Receive mode: listening on " << p.port << " at " << p.baudrate << " baud" << endl;
 
     bool display_available = false;
@@ -216,13 +166,12 @@ void run_receive_mode(const Params& p, UART& uart) {
     }
 }
 
-void run_display_mode(const Params& p) {
+void run_display_mode(const Params& p){
     vector<SegState> segStates;
     run_video(p.filename, p.thresh, p.invert_flag, p.res, p.div, p.max_fps, p.rotation, p.draw, p.seg_color, segStates);
 }
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv){
     Params p = parse_args(argc, argv);
 
     if (p.mode == "send" || p.mode == "receive") {

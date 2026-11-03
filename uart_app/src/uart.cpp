@@ -19,7 +19,7 @@ bool UART::open(const std::string& port, unsigned int baudrate) {
     }
 
     fd = ::open(port.c_str(), O_RDWR | O_NOCTTY);
-    bool is_acm = (port.find("ttyAMC") != std::string::npos);
+    bool is_acm = (port.find("ttyACM") != std::string::npos);
     if (fd < 0) {
         std::cerr << "UART: Failed to open " << port << ": " << strerror(errno) << std::endl;
         return false;
