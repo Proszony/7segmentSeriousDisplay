@@ -29,7 +29,26 @@ build/%.o: src/%.cpp
 	$(CXX) $(CXXFLAGS) $(PKG_CFLAGS) -I include -c $< -o $@
 
 check-deps:
-	@PKG_CONFIG="$(PKG_CONFIG)" OPENCV_PC="$(OPENCV_PC)" ../scripts/check-deps.sh
+	@PKG_CONFIG="$(PKG_CONFIG)" ../scripts/check-deps.sh
+
+# Sprawdza realne zależności dynamiczne zbudowanej aplikacji (ldd).
+# Wyłapuje biblioteki, których nie ma w metadanych pkg-config,
+# np. VTK wciągane przez -lopencv_viz / -lopencv_highgui.
+check-runtime: $(TARGET)
+	@missing=$$(ldd $(TARGET) 2>/dev/null | awk '/not found/ {print $$1}'); \
+	if [ -n "$$missing" ]; then \
+		echo "Brakuje bibliotek runtime (ldd: not found):"; \
+		echo "$$missing" | sed 's/^/  - /'; \
+		echo; \
+		echo "Znajdź pakiet dostarczający bibliotekę:"; \
+		echo "  Arch:     sudo pacman -Fy && pacman -F <lib>"; \
+		echo "  Debian:   sudo apt-file update && apt-file search <lib>"; \
+		echo "  Fedora:   dnf provides '*/<lib>'"; \
+		echo "  openSUSE: zypper what-provides <lib>"; \
+		echo "  Alpine:   apk search -v <lib>"; \
+		exit 1; \
+	fi; \
+	echo "Runtime: wszystkie biblioteki dynamiczne znalezione."
 
 $(PC_FILE): $(PC_TEMPLATE) Makefile FORCE
 	@mkdir -p $(dir $@)
@@ -53,4 +72,4 @@ uninstall:
 clean:
 	rm -rf build $(OBJS) $(TARGET)
 
-.PHONY: all check-deps pc install uninstall clean FORCE
+.PHONY: all check-deps check-runtime pc install uninstall clean FORCE
