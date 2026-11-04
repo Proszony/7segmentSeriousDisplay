@@ -7,17 +7,18 @@
 #
 # Zmienne:
 #   PKG_CONFIG  - nazwa binarki (domyślnie pkg-config, akceptuje pkgconf)
-#   OPENCV_PC   - moduł OpenCV (domyślnie opencv5); Makefile przekazuje wykryty
+#
+# Moduł "opencv" jest symboliczny: skrypt akceptuje opencv5 (Arch) albo
+# opencv4 (Debian/Fedora) i zgłasza brak dopiero, gdy nie ma żadnego z nich.
 
 set -u
 
 PKG_CONFIG="${PKG_CONFIG:-pkg-config}"
-OPENCV_PC="${OPENCV_PC:-opencv5}"
 
 if [ "$#" -gt 0 ]; then
     modules=("$@")
 else
-    modules=("$OPENCV_PC" sdl2 libavformat libavcodec libavutil libswresample)
+    modules=(opencv sdl2 libavformat libavcodec libavutil libswresample)
 fi
 
 # ---------------------------------------------------------------- dystrybucja
@@ -43,7 +44,7 @@ esac
 pkg_for_module() {
     local module="$1"
     case "$module" in
-        opencv4|opencv5)
+        opencv|opencv4|opencv5)
             case "$family" in
                 arch)               echo "opencv" ;;
                 debian)             echo "libopencv-dev" ;;
@@ -115,6 +116,26 @@ add_pkg() {
 }
 
 for module in "${modules[@]}"; do
+    if [ "$module" = "opencv" ]; then
+        # OpenCV 5 (Arch) albo 4 (Debian/Fedora) - akceptujemy oba.
+        opencv_found=""
+        for candidate in opencv5 opencv4; do
+            if version="$("$PKG_CONFIG" --modversion "$candidate" 2>/dev/null)"; then
+                printf '[ok]   %-14s %s\n' "$candidate" "$version"
+                opencv_found="$candidate"
+                break
+            fi
+        done
+        if [ -n "$opencv_found" ]; then
+            ok_count=$((ok_count + 1))
+        else
+            printf '[brak] %-14s\n' "opencv (opencv5/opencv4)"
+            missing_modules+=("opencv (opencv5/opencv4)")
+            add_pkg "$(pkg_for_module opencv)"
+        fi
+        continue
+    fi
+
     if version="$("$PKG_CONFIG" --modversion "$module" 2>/dev/null)"; then
         printf '[ok]   %-14s %s\n' "$module" "$version"
         ok_count=$((ok_count + 1))
