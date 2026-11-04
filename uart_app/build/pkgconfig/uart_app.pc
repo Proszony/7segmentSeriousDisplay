@@ -1,0 +1,10 @@
+prefix=/usr
+exec_prefix=${prefix}
+includedir=${prefix}/include
+libdir=${exec_prefix}/lib
+
+Name: uart_app
+Description: Build requirements for the uart_app host tool
+Version: 1.0.0
+Requires: opencv5 sdl2 libavformat libavcodec libavutil libswresample
+Cflags: -I${includedir}/uart_app

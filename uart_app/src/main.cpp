@@ -17,7 +17,7 @@ using namespace cv;
 
 atomic<bool> stop_audio(false);
 
-void run_send_mode(Params p, UART& uart)<{
+void run_send_mode(Params p, UART& uart) {
     vector<SegState> segStates;
     
     VideoCapture cap(p.filename);
