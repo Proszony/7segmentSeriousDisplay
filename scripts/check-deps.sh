@@ -117,7 +117,7 @@ add_pkg() {
 
 for module in "${modules[@]}"; do
     if [ "$module" = "opencv" ]; then
-        # OpenCV 5 (Arch) albo 4 (Debian/Fedora) - akceptujemy oba.
+        # OpenCV 5 (Arch) albo 4 (Debian/Fedora).
         opencv_found=""
         for candidate in opencv5 opencv4; do
             if "$PKG_CONFIG" --exists "$candidate"; then
