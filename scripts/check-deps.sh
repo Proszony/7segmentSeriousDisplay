@@ -120,7 +120,8 @@ for module in "${modules[@]}"; do
         # OpenCV 5 (Arch) albo 4 (Debian/Fedora) - akceptujemy oba.
         opencv_found=""
         for candidate in opencv5 opencv4; do
-            if version="$("$PKG_CONFIG" --modversion "$candidate" 2>/dev/null)"; then
+            if "$PKG_CONFIG" --exists "$candidate"; then
+                version="$("$PKG_CONFIG" --modversion "$candidate" 2>/dev/null)"
                 printf '[ok]   %-14s %s\n' "$candidate" "$version"
                 opencv_found="$candidate"
                 break
@@ -136,7 +137,8 @@ for module in "${modules[@]}"; do
         continue
     fi
 
-    if version="$("$PKG_CONFIG" --modversion "$module" 2>/dev/null)"; then
+    if "$PKG_CONFIG" --exists "$module"; then
+        version="$("$PKG_CONFIG" --modversion "$module" 2>/dev/null)"
         printf '[ok]   %-14s %s\n' "$module" "$version"
         ok_count=$((ok_count + 1))
     else
