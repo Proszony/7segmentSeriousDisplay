@@ -2,7 +2,7 @@ CXX ?= g++
 CXXFLAGS := -O2 -Wall -std=c++17 -pthread
 
 PKG_CONFIG ?= pkg-config
-# OpenCV 5 na Archu, OpenCV 4 na Debianie/Ubuntu/Fedorze.
+# OpenCV 5 on Archu, OpenCV 4 on Debian/Ubuntu/Fedora.
 OPENCV_PC  ?= $(shell $(PKG_CONFIG) --exists opencv5 && echo opencv5 || echo opencv4)
 PKG_MODULES := $(OPENCV_PC) sdl2 libavformat libavcodec libavutil libswresample
 
@@ -31,16 +31,15 @@ build/%.o: src/%.cpp
 check-deps:
 	@PKG_CONFIG="$(PKG_CONFIG)" ../scripts/check-deps.sh
 
-# Sprawdza realne zależności dynamiczne zbudowanej aplikacji (ldd).
-# Wyłapuje biblioteki, których nie ma w metadanych pkg-config,
-# np. VTK wciągane przez -lopencv_viz / -lopencv_highgui.
+# Check for runtime dependencies
+# for example VTK used by -lopencv_viz / -lopencv_highgui.
 check-runtime: $(TARGET)
 	@missing=$$(ldd $(TARGET) 2>/dev/null | awk '/not found/ {print $$1}'); \
 	if [ -n "$$missing" ]; then \
-		echo "Brakuje bibliotek runtime (ldd: not found):"; \
+		echo "Missing runtime libraries (ldd: not found):"; \
 		echo "$$missing" | sed 's/^/  - /'; \
 		echo; \
-		echo "Znajdź pakiet dostarczający bibliotekę:"; \
+		echo "Find and install missing libraries:"; \
 		echo "  Arch:     sudo pacman -Fy && pacman -F <lib>"; \
 		echo "  Debian:   sudo apt-file update && apt-file search <lib>"; \
 		echo "  Fedora:   dnf provides '*/<lib>'"; \
@@ -48,7 +47,7 @@ check-runtime: $(TARGET)
 		echo "  Alpine:   apk search -v <lib>"; \
 		exit 1; \
 	fi; \
-	echo "Runtime: wszystkie biblioteki dynamiczne znalezione."
+	echo "Runtime: all libraries found."
 
 $(PC_FILE): $(PC_TEMPLATE) Makefile FORCE
 	@mkdir -p $(dir $@)

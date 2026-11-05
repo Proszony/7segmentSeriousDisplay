@@ -4,7 +4,7 @@ includedir=${prefix}/include
 libdir=${exec_prefix}/lib
 
 Name: uart_app
-Description: Build requirements for the uart_app host tool (video -> 7-seg over UART)
+Description: Build requirements for the uart_app host tool (video to 7-seg over UART)
 Version: @VERSION@
 Requires: @OPENCV_PC@ sdl2 libavformat libavcodec libavutil libswresample
 Cflags: -I${includedir}/uart_app

@@ -21,7 +21,7 @@ else
     modules=(opencv sdl2 libavformat libavcodec libavutil libswresample)
 fi
 
-# ---------------------------------------------------------------- dystrybucja
+# check linux distro 
 distro=""
 distro_like=""
 if [ -r /etc/os-release ]; then
@@ -40,7 +40,7 @@ case " $distro $distro_like " in
     *" alpine "*) family="alpine" ;;
 esac
 
-# --------------------------------------------------- moduł -> pakiet(y) nazwy
+# module names 
 pkg_for_module() {
     local module="$1"
     case "$module" in
@@ -72,7 +72,7 @@ pkg_for_module() {
     esac
 }
 
-# Wspólne mapowanie modułów FFmpeg (Debian ma osobne pakiety, reszta jedno).
+# Mapping FFmpeg to linux family
 dep_pkg() {
     local debian_pkg="$1"
     case "$family" in
@@ -85,22 +85,22 @@ dep_pkg() {
     esac
 }
 
-# --------------------------------------------------------------- pkg-config?
+# check for pkg-config
 if ! command -v "$PKG_CONFIG" >/dev/null 2>&1; then
-    echo "BŁĄD: nie znaleziono '$PKG_CONFIG' (pkg-config / pkgconf)." >&2
-    echo "Zainstaluj najpierw narzędzie pkg-config:" >&2
+    echo "ERROR: '$PKG_CONFIG' not found (pkg-config / pkgconf)." >&2
+    echo "Install  pkg-config:" >&2
     case "$family" in
         arch)   echo "  sudo pacman -S --needed pkgconf" >&2 ;;
         debian) echo "  sudo apt install pkg-config" >&2 ;;
         fedora) echo "  sudo dnf install pkgconf-pkg-config" >&2 ;;
         suse)   echo "  sudo zypper install pkgconf-pkg-config" >&2 ;;
         alpine) echo "  sudo apk add pkgconf" >&2 ;;
-        *)      echo "  (zainstaluj pakiet 'pkg-config' lub 'pkgconf')" >&2 ;;
+        *)      echo "  (install 'pkg-config' or 'pkgconf')" >&2 ;;
     esac
     exit 1
 fi
 
-# ------------------------------------------------------------------- sprawdzanie
+# check for missing modules 
 missing_modules=()
 missing_pkgs=()
 ok_count=0
@@ -130,7 +130,7 @@ for module in "${modules[@]}"; do
         if [ -n "$opencv_found" ]; then
             ok_count=$((ok_count + 1))
         else
-            printf '[brak] %-14s\n' "opencv (opencv5/opencv4)"
+            printf '[missing] %-14s\n' "opencv (opencv5/opencv4)"
             missing_modules+=("opencv (opencv5/opencv4)")
             add_pkg "$(pkg_for_module opencv)"
         fi
@@ -142,35 +142,35 @@ for module in "${modules[@]}"; do
         printf '[ok]   %-14s %s\n' "$module" "$version"
         ok_count=$((ok_count + 1))
     else
-        printf '[brak] %-14s\n' "$module"
+        printf '[missing] %-14s\n' "$module"
         missing_modules+=("$module")
         add_pkg "$(pkg_for_module "$module")"
     fi
 done
 
-# ------------------------------------------------------------------- podsumowanie
+# summary
 if [ "${#missing_modules[@]}" -eq 0 ]; then
     echo
-    echo "Wszystkie zależności ($ok_count/${#modules[@]}) są dostępne."
+    echo "All dependencies ($ok_count/${#modules[@]}) available."
     exit 0
 fi
 
 echo
-echo "Brakuje ${#missing_modules[@]} z ${#modules[@]} zależności: ${missing_modules[*]}"
+echo "Missing ${#missing_modules[@]} from ${#modules[@]} dependencies: ${missing_modules[*]}"
 
 if [ "${#missing_pkgs[@]}" -eq 0 ]; then
-    echo "Nie rozpoznano dystrybucji ($distro ${distro_like}). Znajdź pakiety dostarczające:"
+    echo "Unknown distribution ($distro ${distro_like}). Install missing modules:"
     echo "  ${missing_modules[*]}"
     exit 1
 fi
 
 echo
 case "$family" in
-    arch)   echo "Twoja dystrybucja: Arch. Zainstaluj:";   echo "  sudo pacman -S --needed ${missing_pkgs[*]}" ;;
-    debian) echo "Twoja dystrybucja: Debian/Ubuntu. Zainstaluj:"; echo "  sudo apt install ${missing_pkgs[*]}" ;;
-    fedora) echo "Twoja dystrybucja: Fedora/RHEL. Zainstaluj:";   echo "  sudo dnf install ${missing_pkgs[*]}" ;;
-    suse)   echo "Twoja dystrybucja: openSUSE. Zainstaluj:";      echo "  sudo zypper install ${missing_pkgs[*]}" ;;
-    alpine) echo "Twoja dystrybucja: Alpine. Zainstaluj:";        echo "  sudo apk add ${missing_pkgs[*]}" ;;
+    arch)   echo "Your family distribution: Arch. Install:";   echo "  sudo pacman -S --needed ${missing_pkgs[*]}" ;;
+    debian) echo "Your family distribution: Debian/Ubuntu. Install:"; echo "  sudo apt install ${missing_pkgs[*]}" ;;
+    fedora) echo "Your family distribution: Fedora/RHEL. Install:";   echo "  sudo dnf install ${missing_pkgs[*]}" ;;
+    suse)   echo "Your family distribution: openSUSE. Install:";      echo "  sudo zypper install ${missing_pkgs[*]}" ;;
+    alpine) echo "Your family distribution: Alpine. Install:";        echo "  sudo apk add ${missing_pkgs[*]}" ;;
 esac
 
 exit 1
