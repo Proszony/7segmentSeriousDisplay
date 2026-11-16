@@ -40,7 +40,7 @@ void run_send_mode(Params p, UART& uart) {
     segStates.resize(cells.size());
 
     if (p.draw) {
-        namedWindow("7seg_binary", WINDOW_NORMAL);
+        namedWindow("7seg_binary", WINDOW_NORMAL | WINDOW_GUI_NORMAL);
         resizeWindow("7seg_binary", eff_res.width, eff_res.height);
     }
 

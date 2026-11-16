@@ -42,13 +42,13 @@ std::vector<Cell> build_cells(cv::Size eff_res, cv::Size div)
 std::array<cv::Rect, 7> segment_rects(const Cell& c)
 {
     return {{
-        cv::Rect(c.origin.x + fx(0.20f, c.w), c.origin.y + fy(0.05f, c.h), fx(0.60f, c.w), fy(0.12f, c.h)),
-        cv::Rect(c.origin.x + fx(0.78f, c.w), c.origin.y + fy(0.10f, c.h), fx(0.12f, c.w), fy(0.40f, c.h)),
-        cv::Rect(c.origin.x + fx(0.78f, c.w), c.origin.y + fy(0.50f, c.h), fx(0.12f, c.w), fy(0.40f, c.h)),
-        cv::Rect(c.origin.x + fx(0.20f, c.w), c.origin.y + fy(0.85f, c.h), fx(0.60f, c.w), fy(0.12f, c.h)),
-        cv::Rect(c.origin.x + fx(0.10f, c.w), c.origin.y + fy(0.50f, c.h), fx(0.12f, c.w), fy(0.40f, c.h)),
-        cv::Rect(c.origin.x + fx(0.10f, c.w), c.origin.y + fy(0.10f, c.h), fx(0.12f, c.w), fy(0.40f, c.h)),
-        cv::Rect(c.origin.x + fx(0.20f, c.w), c.origin.y + fy(0.45f, c.h), fx(0.60f, c.w), fy(0.12f, c.h))
+        cv::Rect(c.origin.x + fx(0.20f, c.w), c.origin.y + fy(0.05f, c.h), fx(0.60f, c.w), fy(0.12f, c.h)), //A
+        cv::Rect(c.origin.x + fx(0.78f, c.w), c.origin.y + fy(0.10f, c.h), fx(0.12f, c.w), fy(0.40f, c.h)), //B
+        cv::Rect(c.origin.x + fx(0.78f, c.w), c.origin.y + fy(0.50f, c.h), fx(0.12f, c.w), fy(0.40f, c.h)), //C
+        cv::Rect(c.origin.x + fx(0.20f, c.w), c.origin.y + fy(0.85f, c.h), fx(0.60f, c.w), fy(0.12f, c.h)), //D
+        cv::Rect(c.origin.x + fx(0.10f, c.w), c.origin.y + fy(0.50f, c.h), fx(0.12f, c.w), fy(0.40f, c.h)), //E
+        cv::Rect(c.origin.x + fx(0.10f, c.w), c.origin.y + fy(0.10f, c.h), fx(0.12f, c.w), fy(0.40f, c.h)), //F
+        cv::Rect(c.origin.x + fx(0.20f, c.w), c.origin.y + fy(0.45f, c.h), fx(0.60f, c.w), fy(0.12f, c.h))  //G
     }};
 }
 
@@ -134,7 +134,7 @@ void run_video(const string &filename,
     segStates.resize(cells.size());
 
     if (draw) {
-        namedWindow("7seg_binary", WINDOW_NORMAL);
+        namedWindow("7seg_binary", WINDOW_NORMAL | WINDOW_GUI_NORMAL);
         resizeWindow("7seg_binary", eff_res.width, eff_res.height);
     }
 
