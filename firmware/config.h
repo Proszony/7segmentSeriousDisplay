@@ -12,7 +12,7 @@ struct Params {
     int modules_x = 1;
     int modules_y = 1;
     int refresh_ms = 10;
-    int reinit_interval = 60;
+    double reinit_interval = 0.5;
     int cs_pins[MAX_MODULES] = {25, 26, 27, 22, 23, 24, 17, 18};
 };
 

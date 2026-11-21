@@ -385,7 +385,7 @@ int main(int argc, char **argv)
     std::thread refresh_thread([&] {
         unsigned long resync_cycles = 0;
         if (p.reinit_interval > 0 && p.refresh_ms > 0)
-            resync_cycles = static_cast<unsigned long>(p.reinit_interval) * 1000 / p.refresh_ms;
+            resync_cycles = static_cast<unsigned long>(p.reinit_interval * 1000 / p.refresh_ms);
         unsigned long cycle = 0;
         while (g_running) {
             display.refresh();
