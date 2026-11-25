@@ -79,10 +79,12 @@ std::optional<std::string> validate_params(const Params& p){
 		return "Unknown mode";
 	} 
 	if(p.div.width < 1 || p.div.height < 1){
+		
+		return "Invalid number of segments. Number must be positive"; 
+	}else {
 		if(p.mode != "display" && (p.div.height > 255 || p.div.width > 255)){
 			return "Invalid number of segments. Div must be between [1,255] for send and receive modes";
 		}
-		return "Invalid number of segments. Number must be positive"; 
 	}
 	
 	const cv::Size eff_res = (p.rotation == 90 || p.rotation == 270) ? cv::Size(p.res.height, p.res.width) : p.res;
