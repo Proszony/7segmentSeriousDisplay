@@ -1,5 +1,7 @@
 # 7segmentSeriousDisplay
 
+[Polski](README.md) | [English](README.en.md)
+
 Odtwarzanie wideo na matrycy wyświetlaczy 7-segmentowych MAX7219 sterowanej przez Raspberry Pi.
 
 Projekt zamienia klatki wideo na stany segmentów 7-segmentowych i przesyła je z komputera przez UART do Raspberry Pi. Raspberry Pi odbiera ramki i steruje modułami MAX7219 przez SPI. Aplikacja na PC ma też tryb `display`, który pokazuje wynik lokalnie, bez podłączania sprzętu.
