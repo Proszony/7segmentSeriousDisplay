@@ -4,7 +4,7 @@ DESTDIR ?=
 export PREFIX
 export DESTDIR
 
-.PHONY: all uart_app check-deps check-runtime pc install uninstall clean
+.PHONY: all uart_app check-deps check-runtime pc install uninstall clean test test-hardware
 
 all: uart_app
 
@@ -28,3 +28,9 @@ uninstall:
 
 clean:
 	$(MAKE) -C uart_app clean
+
+test:
+	$(MAKE) -C test run-unit
+
+test-hardware:
+	$(MAKE) -C test run-hardware
