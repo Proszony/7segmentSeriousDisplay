@@ -14,7 +14,7 @@ hardware:
 run-unit: unit
 	@status=0; \
 	for t in bin/test_uart bin/test_framing bin/test_config; do \
-		echo; echo "=== $$t ==="; \
+		echo; echo "Running: $$t "; \
 		./$$t || status=1; \
 	done; \
 	exit $$status
@@ -22,7 +22,7 @@ run-unit: unit
 run-hardware: hardware
 	@status=0; \
 	for t in bin/test_daisy_cs; do \
-		echo; echo "=== $$t ==="; \
+		echo; echo "Running: $$t "; \
 		./$$t || status=1; \
 	done; \
 	exit $$status
