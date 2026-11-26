@@ -1,8 +1,13 @@
-# 7segmentSeriousDisplay
+<h1 align="center">7segmentSeriousDisplay</h1>
 
-[English](README.en.md) | [Polski](README.md)
+<p align="center">
+  <a href="README.en.md">English</a> |
+  <a href="README.md">Polski</a>
+</p>
 
-Video playback on a MAX7219 7-segment display matrix driven by a Raspberry Pi.
+<p align="center">
+  Video playback on a MAX7219 7-segment display matrix driven by a Raspberry Pi.
+</p>
 
 The project converts video frames into 7-segment states and sends them from a PC over UART to a Raspberry Pi. The Raspberry Pi receives the frames and drives MAX7219 modules over SPI. The PC app also has a `display` mode that shows the result locally, without any hardware.
 
